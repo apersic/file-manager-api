@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17.4
+    container_name: file-manager-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-file_manager}
+      POSTGRES_USER: ${POSTGRES_USER:-file_manager_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-file_manager_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - file-manager-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-file_manager_user} -d ${POSTGRES_DB:-file_manager}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  file-manager-postgres-data:

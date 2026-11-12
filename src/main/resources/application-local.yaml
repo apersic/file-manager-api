@@ -1,0 +1,20 @@
+# Local database values match compose.yaml. They are not production secrets.
+# Copy .env.example to .env only when you want to override them.
+DATASOURCE_URL: jdbc:postgresql://localhost:5432/file_manager
+DATASOURCE_USERNAME: file_manager_user
+DATASOURCE_PASSWORD: file_manager_password
+SHOW_SQL: true
+
+spring:
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  config:
+    import: optional:application-local-secrets.yaml
+
+logging:
+  level:
+    filemanager: INFO

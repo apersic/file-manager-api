@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Pre-commit hook for the file manager API.
+# 1. Format code with Spotless
+# 2. Compile main and test sources
+# 3. Confirm the formatting check still passes
+
+set -e
+
+echo "Running pre-commit checks..."
+
+cd "$(git rev-parse --show-toplevel)"
+
+# Git Bash on Windows does not inherit a user JAVA_HOME that was set after the terminal opened.
+if [ -z "${JAVA_HOME:-}" ] || [ ! -x "$JAVA_HOME/bin/java" ]; then
+    shopt -s nullglob
+    java_bins=( "/c/Program Files/Eclipse Adoptium"/jdk-21*/bin/java )
+    shopt -u nullglob
+    if [ "${#java_bins[@]}" -gt 0 ]; then
+        java_bin="${java_bins[${#java_bins[@]}-1]}"
+        export JAVA_HOME="$(cd "$(dirname "$java_bin")/.." && pwd)"
+        export PATH="$JAVA_HOME/bin:$PATH"
+    fi
+fi
+
+if [ -z "${JAVA_HOME:-}" ] || [ ! -x "$JAVA_HOME/bin/java" ]; then
+    echo "Java 21 was not found. Install Temurin 21 or set JAVA_HOME, then commit again."
+    exit 1
+fi
+
+print_status() {
+    echo "$1"
+}
+
+print_success() {
+    echo "$1"
+}
+
+print_warning() {
+    echo "$1"
+}
+
+print_error() {
+    echo "$1"
+}
+
+print_status "Formatting code with Spotless..."
+if ./gradlew spotlessApply --quiet; then
+    print_success "Code formatted successfully"
+else
+    print_error "Spotless formatting failed"
+    exit 1
+fi
+
+if ! git diff --quiet; then
+    print_warning "Code was reformatted. Review the diff, stage it, and commit again."
+    echo "Files modified:"
+    git diff --name-only
+    echo ""
+    echo "Review with: git diff"
+    echo "Stage with: git add ."
+    exit 1
+fi
+
+print_status "Running compilation check..."
+if ./gradlew compileJava compileTestJava --quiet; then
+    print_success "Compilation successful"
+else
+    print_error "Compilation failed"
+    exit 1
+fi
+
+print_status "Verifying code formatting..."
+if ./gradlew spotlessCheck --quiet; then
+    print_success "Code formatting is correct"
+else
+    print_error "Code formatting issues detected"
+    echo "Run './gradlew spotlessApply' to fix formatting"
+    exit 1
+fi
+
+print_success "All pre-commit checks passed."
+exit 0
