@@ -17,9 +17,12 @@ import filemanager.config.CorsProperties;
 import filemanager.config.SecurityConfig;
 import filemanager.domain.Node;
 import filemanager.domain.NodeKind;
+import filemanager.domain.NodePage;
+import filemanager.domain.SearchMatch;
 import filemanager.exception.RestExceptionHandler;
 import filemanager.service.NodeCatalog;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -91,6 +94,48 @@ class NodeControllerTest {
 
     verify(catalog, never()).listChildren(anyLong(), any(), eq(101));
     verify(catalog, never()).listChildren(anyLong(), isNull(), eq(0));
+  }
+
+  @Test
+  void searchReturnsFilesAndFolders() throws Exception {
+    Instant stamp = Instant.parse("2026-01-02T03:04:05Z");
+    when(catalog.search("de", SearchMatch.PREFIX, null, null, 10))
+        .thenReturn(
+            new NodePage(
+                List.of(
+                    new Node(2L, 1L, NodeKind.FOLDER, "Designs", stamp, stamp),
+                    new Node(3L, 1L, NodeKind.FILE, "Desk.txt", stamp, stamp)),
+                null));
+
+    mockMvc
+        .perform(
+            get("/api/v1/nodes/search")
+                .param("q", "de")
+                .param("match", "PREFIX")
+                .param("limit", "10"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[0].kind").value("FOLDER"))
+        .andExpect(jsonPath("$.items[1].kind").value("FILE"));
+  }
+
+  @Test
+  void blankOrHugeQueryIsAFieldError() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/nodes/search").param("q", " ").param("match", "EXACT"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.q").value("Query is required"));
+
+    mockMvc
+        .perform(
+            get("/api/v1/nodes/search")
+                .param("q", "a".repeat(256))
+                .param("match", "PREFIX")
+                .param("limit", "10"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.q").value("Query must be at most 255 characters"));
+
+    verify(catalog, never()).search(any(), any(), any(), any(), any());
   }
 
   private void assertNameRejected(String name, String message) throws Exception {
