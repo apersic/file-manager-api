@@ -41,6 +41,12 @@ set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
 @rem Find java.exe
 if defined JAVA_HOME goto findJavaFromJavaHome
 
+@rem A shell opened before JAVA_HOME was set has no java on PATH.
+for /d %%D in ("C:\Program Files\Eclipse Adoptium\jdk-21*") do (
+    if exist "%%D\bin\java.exe" set "JAVA_HOME=%%D"
+)
+if defined JAVA_HOME goto findJavaFromJavaHome
+
 set JAVA_EXE=java.exe
 %JAVA_EXE% -version >NUL 2>&1
 if %ERRORLEVEL% equ 0 goto execute

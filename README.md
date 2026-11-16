@@ -1,36 +1,52 @@
 # File manager API
 
-Spring Boot service for a browser file tree. The process starts, talks to PostgreSQL, and returns the error and health contracts. It does not create, list, search, or delete files yet. Product rules are in [specification.md](specification.md).
+Spring Boot service for a browser file tree. It creates folders and files, lists a folder one page at a time, and reads a node with its ancestors. It does not search or delete yet. Product rules are in [specification.md](specification.md).
 
-## Prerequisites
+## Setup
 
-- Java 21
-- Docker, for PostgreSQL and for the end-to-end test
+Install Java 21 and Docker, then open a new terminal. `java -version` should print 21. If it does not, set `JAVA_HOME` to the JDK folder, the one that contains `bin`, and add `%JAVA_HOME%\bin` to `PATH`. Do not put a backslash at the end of `JAVA_HOME`. Eclipse Temurin on this machine is `C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot`. A terminal that was already open when Java was installed still has the old `PATH`. Close it and open another.
 
-## Debug
-
-From this directory:
+From this directory, start PostgreSQL:
 
 ```powershell
 docker compose up -d
+```
+
+The database, user, and password are `file_manager`, `file_manager_user`, and `file_manager_password`, on port 5432. `application-local.yaml` already uses those values. You do not need a secrets file. Copy `.env.example` to `.env` only when you want different ones.
+
+## Run
+
+```powershell
 .\gradlew.bat bootRun --args="--spring.profiles.active=local --spring.docker.compose.enabled=false"
 ```
 
-`application-local.yaml` already points at `localhost:5432` with the user and database from `compose.yaml`. You do not need a secrets file. Copy `.env.example` to `.env` only when you want different values.
+`./gradlew` from PowerShell runs the same wrapper. If `JAVA_HOME` is still empty, the wrapper uses the newest Temurin 21 under `C:\Program Files\Eclipse Adoptium`.
 
 Compose is started by hand because Spring Boot's compose integration has failed on the project this one is based on, with `No host port mapping found for container port 5432`. The Docker Compose dependency is still on the development classpath. The flag above keeps boot from starting a second Postgres.
 
-Health check:
+The API listens on port 8080.
 
 ```powershell
 curl http://localhost:8080/actuator/health
 ```
 
-A running database returns `{"status":"UP"}`. `GET /api/v1/does-not-exist` returns a 404 JSON body. `GET /actuator/info` returns 403.
+A running database returns `{"status":"UP"}`. `GET /api/v1/does-not-exist` returns a 404 JSON body. `GET /actuator/info` returns 403. Stop the app with Ctrl+C. Stop Postgres with `docker compose down`. The database volume is kept.
+
+## Create and browse
+
+The migration seeds a root folder named Home.
+
+```powershell
+curl http://localhost:8080/api/v1/nodes/root
+curl -X POST http://localhost:8080/api/v1/nodes -H "Content-Type: application/json" -d "{\"parentId\":1,\"kind\":\"FOLDER\",\"name\":\"Designs\"}"
+curl "http://localhost:8080/api/v1/nodes?parentId=1&limit=50"
+```
+
+`POST` returns 201 and a `Location` header. A second folder or file with the same name in that parent returns 409, and case does not make it a different name. `GET /api/v1/nodes/{id}` adds `ancestors`, root first, without the node itself. List pages are ordered by the folded name. `limit` defaults to 50 and cannot be higher than 100. `nextCursor` is null on the last page.
 
 ## Tests and format
 
-`build` runs Spotless, the MockMvc tests, and the Testcontainers health test. Docker must be running.
+`build` runs Spotless, the MockMvc tests, and the Testcontainers tests. Docker must be running. The end-to-end tests cover health, create, browse, duplicate names, and a parent that is a file.
 
 ```powershell
 .\gradlew.bat clean build
@@ -38,7 +54,7 @@ A running database returns `{"status":"UP"}`. `GET /api/v1/does-not-exist` retur
 .\gradlew.bat e2eTest
 ```
 
-`e2eTest` is only the health test. `build` already includes it. Docker 29 rejects the API version Testcontainers 1.21 sends by default. The test sets docker-java to API 1.44 before it opens a container.
+`e2eTest` is the Testcontainers set. `build` already includes it. Docker 29 rejects the API version Testcontainers 1.21 sends by default. The test sets docker-java to API 1.44 before it opens a container.
 
 ## Git hook
 
@@ -67,4 +83,4 @@ The image does not start Compose. Postgres has to be running already. Set `DATAS
 
 ## Not in this build
 
-No folder or file endpoints. The migration directory is empty on purpose.
+No search endpoint and no delete endpoint. Deleting a folder in the database would remove its children, but the API does not expose that yet.
