@@ -53,10 +53,21 @@ mv .git/hooks/pre-commit.disabled .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 ```
 
+## Demo
+
+`demo.ps1` calls a running API. It checks health, creates a folder and a file, lists the folder, runs a prefix search and an exact search, deletes the folder, and checks that Home cannot be deleted.
+
+```powershell
+.\scripts\demo.ps1
+```
+
+Set `API_BASE_URL` when the API is not on `http://localhost:8080`.
+
 ## Files
 
 - `pre-commit` is the hook
 - `setup-hooks.sh` installs it
+- `demo.ps1` checks a running API
 - `README.md` is this file
 
 ## Troubleshooting
