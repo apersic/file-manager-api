@@ -6,6 +6,13 @@ spring:
     url: ${DATASOURCE_URL}
     username: ${DATASOURCE_USERNAME}
     password: ${DATASOURCE_PASSWORD}
+    hikari:
+      pool-name: file-manager
+      maximum-pool-size: ${HIKARI_MAXIMUM_POOL_SIZE:10}
+      minimum-idle: ${HIKARI_MINIMUM_IDLE:2}
+      connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:10000}
+      idle-timeout: ${HIKARI_IDLE_TIMEOUT:600000}
+      max-lifetime: ${HIKARI_MAX_LIFETIME:1800000}
   jpa:
     open-in-view: false
     show-sql: ${SHOW_SQL:false}
