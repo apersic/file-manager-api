@@ -2,7 +2,7 @@
 
 A browser file system in the shape of a folder tree. A file is a name plus `createdAt` and `updatedAt`. It has no bytes. There is no login.
 
-This build creates folders and files, lists the children of a folder, and reads a node with its ancestors. Search and delete are specified below and are not implemented yet.
+This build creates folders and files, lists the children of a folder, reads a node with its ancestors, and searches by exact name or prefix. Delete is specified below and is not implemented yet.
 
 ## Planned behavior
 
@@ -25,7 +25,7 @@ Create returns 201. A duplicate sibling name returns 409, including a retry of a
 
 Listing and search use a cursor. The default page size is 50 and the cap is 100. Responses do not include a total count.
 
-Create sends `parentId`, `kind` (`FILE` or `FOLDER`), and `name`. The 201 body is `id`, `parentId`, `kind`, `name`, `createdAt`, and `updatedAt`. `GET /api/v1/nodes/{id}` and `GET /api/v1/nodes/root` use that same body plus `ancestors`, each with `id`, `name`, and `kind`. A list is `GET /api/v1/nodes?parentId=&cursor=&limit=` and returns `items` plus `nextCursor`. A missing node or parent is 404. A parent that is a file is 409. A cursor this API did not issue is 400. `limit` outside 1 to 100 is a 400 field map.
+Create sends `parentId`, `kind` (`FILE` or `FOLDER`), and `name`. The 201 body is `id`, `parentId`, `kind`, `name`, `createdAt`, and `updatedAt`. `GET /api/v1/nodes/{id}` and `GET /api/v1/nodes/root` use that same body plus `ancestors`, each with `id`, `name`, and `kind`. A list is `GET /api/v1/nodes?parentId=&cursor=&limit=` and returns `items` plus `nextCursor`. Search is `GET /api/v1/nodes/search?q=&match=EXACT|PREFIX&parentId=&cursor=&limit=`. Omit `parentId` to search the whole tree. A missing node or parent is 404. A parent that is a file is 409. A cursor this API did not issue is 400. `limit` outside 1 to 100, a blank query, and a query longer than 255 characters are a 400 field map.
 
 ## Errors
 
@@ -47,7 +47,7 @@ The API does not authenticate callers. The security filter still turns CSRF off,
 
 One PostgreSQL table holds files and folders. A row points at its parent. The database rejects a file as a parent, rejects two siblings with the same folded name, and removes a subtree in one transaction when a folder is deleted. Flyway owns the schema. Hibernate only validates it.
 
-`V1__create_node_catalog.sql` creates that table, seeds Home, and rejects a change to `parent_id`. Search and delete do not have endpoints yet. The foreign key would already remove a subtree if a row were deleted in SQL.
+`V1__create_node_catalog.sql` creates that table, seeds Home, and rejects a change to `parent_id`. Search reads that table. It does not add another one. Delete does not have an endpoint yet. The foreign key would already remove a subtree if a row were deleted in SQL.
 
 ## Tradeoffs already chosen
 

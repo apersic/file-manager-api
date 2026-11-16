@@ -1,6 +1,6 @@
 # File manager API
 
-Spring Boot service for a browser file tree. It creates folders and files, lists a folder one page at a time, and reads a node with its ancestors. It does not search or delete yet. Product rules are in [specification.md](specification.md).
+Spring Boot service for a browser file tree. It creates folders and files, lists a folder one page at a time, reads a node with its ancestors, and searches by exact name or prefix. It does not delete yet. Product rules are in [specification.md](specification.md).
 
 ## Setup
 
@@ -44,9 +44,18 @@ curl "http://localhost:8080/api/v1/nodes?parentId=1&limit=50"
 
 `POST` returns 201 and a `Location` header. A second folder or file with the same name in that parent returns 409, and case does not make it a different name. `GET /api/v1/nodes/{id}` adds `ancestors`, root first, without the node itself. List pages are ordered by the folded name. `limit` defaults to 50 and cannot be higher than 100. `nextCursor` is null on the last page.
 
+## Search
+
+```powershell
+curl "http://localhost:8080/api/v1/nodes/search?q=des&match=PREFIX&limit=10"
+curl "http://localhost:8080/api/v1/nodes/search?q=Designs&match=EXACT&parentId=1"
+```
+
+Leave out `parentId` to search the whole tree. Set it to search only the direct children of that folder. `match` is `EXACT` or `PREFIX`. A prefix is the start of the folded name. `%` and `_` are ordinary characters. Results include files and folders, and each row has `kind`. An unknown folder is 404. A file id used as `parentId` is 409. No matches is an empty page, not an error.
+
 ## Tests and format
 
-`build` runs Spotless, the MockMvc tests, and the Testcontainers tests. Docker must be running. The end-to-end tests cover health, create, browse, duplicate names, and a parent that is a file.
+`build` runs Spotless, the MockMvc tests, and the Testcontainers tests. Docker must be running. The end-to-end tests cover health, create, browse, search, duplicate names, and a parent that is a file.
 
 ```powershell
 .\gradlew.bat clean build
@@ -83,4 +92,4 @@ The image does not start Compose. Postgres has to be running already. Set `DATAS
 
 ## Not in this build
 
-No search endpoint and no delete endpoint. Deleting a folder in the database would remove its children, but the API does not expose that yet.
+No delete endpoint. Deleting a folder in the database would remove its children, but the API does not expose that yet.

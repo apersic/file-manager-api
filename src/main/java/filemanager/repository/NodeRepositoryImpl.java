@@ -3,6 +3,7 @@ package filemanager.repository;
 import filemanager.domain.Node;
 import filemanager.domain.NodeKind;
 import filemanager.domain.NodeName;
+import filemanager.domain.SearchMatch;
 import filemanager.exception.DuplicateNodeNameException;
 import filemanager.exception.NodeNotFoundException;
 import java.sql.ResultSet;
@@ -81,6 +82,37 @@ public class NodeRepositoryImpl implements NodeRepositoryCustom {
         .param("limit", limit)
         .query((rs, row) -> mapRow(rs))
         .list();
+  }
+
+  @Override
+  public List<NodeRow> search(
+      Long parentId,
+      SearchMatch match,
+      String lo,
+      String hi,
+      String lowerKey,
+      long lowerId,
+      int limit) {
+    boolean upperBound = hi != null;
+    boolean resumed = lowerId > 0;
+    var query =
+        jdbc.sql(NodeSearchSql.select(parentId != null, match, upperBound, resumed))
+            .param("limit", limit);
+    if (parentId != null) {
+      query = query.param("parentId", parentId);
+    }
+    if (resumed) {
+      query = query.param("lowerId", lowerId);
+    }
+    query =
+        switch (match) {
+          case EXACT -> query.param("lo", lo);
+          case PREFIX ->
+              upperBound
+                  ? query.param("lowerKey", lowerKey).param("hi", hi)
+                  : query.param("lowerKey", lowerKey);
+        };
+    return query.query((rs, row) -> mapRow(rs)).list();
   }
 
   @Override

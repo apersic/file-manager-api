@@ -1,5 +1,6 @@
 package filemanager.controller;
 
+import filemanager.domain.SearchMatch;
 import filemanager.dto.CreateNodeRequest;
 import filemanager.dto.NodeDetailResponse;
 import filemanager.dto.NodePageResponse;
@@ -9,6 +10,7 @@ import filemanager.service.NodeCatalog;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,24 @@ public class NodeController {
   @GetMapping("/root")
   public NodeDetailResponse getRoot() {
     return NodeMapper.toDetail(catalog.getRoot());
+  }
+
+  @GetMapping("/search")
+  public NodePageResponse search(
+      @RequestParam("q")
+          @NotBlank(message = "Query is required")
+          @Size(max = 255, message = "Query must be at most 255 characters")
+          String q,
+      @RequestParam("match") SearchMatch match,
+      @RequestParam(value = "parentId", required = false) Long parentId,
+      @RequestParam(value = "cursor", required = false)
+          @Size(max = 2048, message = "Cursor is too long")
+          String cursor,
+      @RequestParam(value = "limit", required = false)
+          @Min(value = 1, message = "Limit must be between 1 and 100")
+          @Max(value = 100, message = "Limit must be between 1 and 100")
+          Integer limit) {
+    return NodeMapper.toPage(catalog.search(q, match, parentId, cursor, limit));
   }
 
   @GetMapping("/{id}")
