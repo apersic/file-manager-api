@@ -11,6 +11,7 @@ import filemanager.entity.NodeEntity;
 import filemanager.exception.DuplicateNodeNameException;
 import filemanager.exception.NodeNotFoundException;
 import filemanager.exception.ParentNotFolderException;
+import filemanager.exception.RootDeleteException;
 import filemanager.repository.NodeRepository;
 import filemanager.repository.NodeRow;
 import filemanager.service.CursorCodec.Position;
@@ -93,6 +94,17 @@ public class NodeCatalogImpl implements NodeCatalog {
     NodeName.check(name);
     requireFolder(parentId);
     return nodes.insert(parentId, kind, name).orElseThrow(DuplicateNodeNameException::new);
+  }
+
+  @Override
+  @Transactional
+  public void delete(long id) {
+    NodeEntity node =
+        nodes.findById(id).orElseThrow(() -> new NodeNotFoundException("Node was not found"));
+    if (node.getParentId() == null) {
+      throw new RootDeleteException();
+    }
+    nodes.delete(node);
   }
 
   private void requireFolder(long parentId) {

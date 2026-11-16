@@ -1,6 +1,6 @@
 # File manager API
 
-Spring Boot service for a browser file tree. It creates folders and files, lists a folder one page at a time, reads a node with its ancestors, and searches by exact name or prefix. It does not delete yet. Product rules are in [specification.md](specification.md).
+Spring Boot service for a browser file tree. It creates folders and files, lists a folder one page at a time, reads a node with its ancestors, searches by exact name or prefix, and deletes a file or a folder. Product rules are in [specification.md](specification.md).
 
 ## Setup
 
@@ -53,9 +53,19 @@ curl "http://localhost:8080/api/v1/nodes/search?q=Designs&match=EXACT&parentId=1
 
 Leave out `parentId` to search the whole tree. Set it to search only the direct children of that folder. `match` is `EXACT` or `PREFIX`. A prefix is the start of the folded name. `%` and `_` are ordinary characters. Results include files and folders, and each row has `kind`. An unknown folder is 404. A file id used as `parentId` is 409. No matches is an empty page, not an error.
 
+## Delete
+
+```powershell
+curl -X DELETE http://localhost:8080/api/v1/nodes/4
+```
+
+A successful delete returns 204 and an empty body. Deleting a folder removes that folder and everything inside it in one database transaction. A missing id returns 404, and deleting the same id again returns 404. Deleting Home returns 409. A direct SQL delete of Home is rejected as well.
+
+A large folder stays one transaction. That delete can hold locks for seconds. There is no background job.
+
 ## Tests and format
 
-`build` runs Spotless, the MockMvc tests, and the Testcontainers tests. Docker must be running. The end-to-end tests cover health, create, browse, search, duplicate names, and a parent that is a file.
+`build` runs Spotless, the MockMvc tests, and the Testcontainers tests. Docker must be running. The end-to-end tests cover health, create, browse, search, delete, duplicate names, and a parent that is a file.
 
 ```powershell
 .\gradlew.bat clean build
@@ -89,7 +99,3 @@ docker build -t file-manager-api .
 ```
 
 The image does not start Compose. Postgres has to be running already. Set `DATASOURCE_URL`, `DATASOURCE_USERNAME`, and `DATASOURCE_PASSWORD`.
-
-## Not in this build
-
-No delete endpoint. Deleting a folder in the database would remove its children, but the API does not expose that yet.
