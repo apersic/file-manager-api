@@ -4,9 +4,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -20,6 +22,7 @@ import filemanager.domain.NodeKind;
 import filemanager.domain.NodePage;
 import filemanager.domain.SearchMatch;
 import filemanager.exception.RestExceptionHandler;
+import filemanager.exception.RootDeleteException;
 import filemanager.service.NodeCatalog;
 import java.time.Instant;
 import java.util.List;
@@ -136,6 +139,22 @@ class NodeControllerTest {
         .andExpect(jsonPath("$.q").value("Query must be at most 255 characters"));
 
     verify(catalog, never()).search(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void deleteReturnsNoContent() throws Exception {
+    mockMvc.perform(delete("/api/v1/nodes/4")).andExpect(status().isNoContent());
+    verify(catalog).delete(4L);
+  }
+
+  @Test
+  void deleteOfTheRootIsConflict() throws Exception {
+    doThrow(new RootDeleteException()).when(catalog).delete(1L);
+
+    mockMvc
+        .perform(delete("/api/v1/nodes/1"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.message").value("The root folder cannot be deleted"));
   }
 
   private void assertNameRejected(String name, String message) throws Exception {

@@ -17,4 +17,6 @@ public interface NodeCatalog {
   NodePage search(String query, SearchMatch match, Long parentId, String cursor, Integer limit);
 
   Node create(long parentId, NodeKind kind, String name);
+
+  void delete(long id);
 }

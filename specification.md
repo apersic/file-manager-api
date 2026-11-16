@@ -2,7 +2,7 @@
 
 A browser file system in the shape of a folder tree. A file is a name plus `createdAt` and `updatedAt`. It has no bytes. There is no login.
 
-This build creates folders and files, lists the children of a folder, reads a node with its ancestors, and searches by exact name or prefix. Delete is specified below and is not implemented yet.
+This build creates folders and files, lists the children of a folder, reads a node with its ancestors, searches by exact name or prefix, and deletes a file or a folder.
 
 ## Planned behavior
 
@@ -47,7 +47,7 @@ The API does not authenticate callers. The security filter still turns CSRF off,
 
 One PostgreSQL table holds files and folders. A row points at its parent. The database rejects a file as a parent, rejects two siblings with the same folded name, and removes a subtree in one transaction when a folder is deleted. Flyway owns the schema. Hibernate only validates it.
 
-`V1__create_node_catalog.sql` creates that table, seeds Home, and rejects a change to `parent_id`. Search reads that table. It does not add another one. Delete does not have an endpoint yet. The foreign key would already remove a subtree if a row were deleted in SQL.
+`V1__create_node_catalog.sql` creates that table, seeds Home, and rejects a change to `parent_id`. Search reads that table. It does not add another one. `DELETE /api/v1/nodes/{id}` deletes one row, and the foreign key removes the subtree in that same transaction. `V2__reject_root_delete.sql` rejects a direct SQL delete of Home. The service returns 409 for that request before it reaches the database.
 
 ## Tradeoffs already chosen
 

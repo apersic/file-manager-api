@@ -77,6 +77,7 @@ public class RestExceptionHandler {
         switch (ex) {
           case DuplicateNodeNameException ignored -> HttpStatus.CONFLICT;
           case ParentNotFolderException ignored -> HttpStatus.CONFLICT;
+          case RootDeleteException ignored -> HttpStatus.CONFLICT;
           case InvalidCursorException ignored -> HttpStatus.BAD_REQUEST;
           case NodeNotFoundException ignored -> HttpStatus.NOT_FOUND;
         };
