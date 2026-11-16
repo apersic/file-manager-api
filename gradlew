@@ -117,6 +117,18 @@ esac
 CLASSPATH="\\\"\\\""
 
 
+# A shell opened before JAVA_HOME was set has no java on PATH.
+if [ -z "$JAVA_HOME" ] && [ -d "/c/Program Files/Eclipse Adoptium" ]; then
+    for candidate in "/c/Program Files/Eclipse Adoptium"/jdk-21*; do
+        if [ -x "$candidate/bin/java" ] || [ -x "$candidate/bin/java.exe" ]; then
+            JAVA_HOME=$candidate
+        fi
+    done
+    if [ -n "$JAVA_HOME" ]; then
+        export JAVA_HOME
+    fi
+fi
+
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then

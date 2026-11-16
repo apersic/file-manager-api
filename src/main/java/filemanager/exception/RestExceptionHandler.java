@@ -2,6 +2,8 @@ package filemanager.exception;
 
 import filemanager.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -11,12 +13,15 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -37,6 +42,46 @@ public class RestExceptionHandler {
         .forEach(error -> errors.put(error.getObjectName(), error.getDefaultMessage()));
     log.warn("Validation error: {}", errors);
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+  }
+
+  @ExceptionHandler(ConstraintViolationException.class)
+  public ResponseEntity<Map<String, String>> handleConstraintViolation(
+      ConstraintViolationException ex) {
+    Map<String, String> errors = new LinkedHashMap<>();
+    for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
+      errors.put(parameterName(violation), violation.getMessage());
+    }
+    log.warn("Validation error: {}", errors);
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+  }
+
+  @ExceptionHandler(HandlerMethodValidationException.class)
+  public ResponseEntity<Map<String, String>> handleMethodValidation(
+      HandlerMethodValidationException ex) {
+    Map<String, String> errors = new LinkedHashMap<>();
+    for (ParameterValidationResult result : ex.getParameterValidationResults()) {
+      String name = parameterName(result);
+      String message =
+          result.getResolvableErrors().isEmpty()
+              ? "Invalid value"
+              : result.getResolvableErrors().get(0).getDefaultMessage();
+      errors.put(name, message);
+    }
+    log.warn("Validation error: {}", errors);
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+  }
+
+  @ExceptionHandler(NodeException.class)
+  public ResponseEntity<ErrorResponse> handleNode(NodeException ex, HttpServletRequest request) {
+    HttpStatus status =
+        switch (ex) {
+          case DuplicateNodeNameException ignored -> HttpStatus.CONFLICT;
+          case ParentNotFolderException ignored -> HttpStatus.CONFLICT;
+          case InvalidCursorException ignored -> HttpStatus.BAD_REQUEST;
+          case NodeNotFoundException ignored -> HttpStatus.NOT_FOUND;
+        };
+    log.warn("Node request failed: {}", ex.getMessage());
+    return error(ex.getMessage(), status, request);
   }
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -107,6 +152,22 @@ public class RestExceptionHandler {
             Instant.now(),
             request.getRequestURI());
     return ResponseEntity.status(status).body(body);
+  }
+
+  private static String parameterName(ConstraintViolation<?> violation) {
+    String path = violation.getPropertyPath().toString();
+    int dot = path.lastIndexOf('.');
+    return dot < 0 ? path : path.substring(dot + 1);
+  }
+
+  private static String parameterName(ParameterValidationResult result) {
+    RequestParam requestParam =
+        result.getMethodParameter().getParameterAnnotation(RequestParam.class);
+    if (requestParam != null && !requestParam.value().isBlank()) {
+      return requestParam.value();
+    }
+    String name = result.getMethodParameter().getParameterName();
+    return name == null ? "request" : name;
   }
 
   static boolean isProbePath(String path) {
